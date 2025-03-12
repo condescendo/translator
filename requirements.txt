@@ -4,3 +4,5 @@ torch
 accelerate>=0.21.0
 safetensors>=0.4.2
 transformers>=4.40.0  # Must be 4.40 or newer
+sentencepiece==0.2.0
+protobuf==4.25.3
