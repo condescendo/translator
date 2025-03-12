@@ -7,7 +7,7 @@ st.title('📚 Translator')
 # @st.cache(allow_output_mutation=True)
 # @st.cache_resource 
 def get_model():
-    model_name = "microsoft/Phi-4-mini-instruct"
+    model_name = "Qwen/Qwen2-1.5B"
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     return tokenizer,model
