@@ -7,16 +7,17 @@ st.title('📚 Translator')
 # @st.cache(allow_output_mutation=True)
 # @st.cache_resource 
 def get_model():
-    model_name = "Qwen/QwQ-32B"
+    model_name = "microsoft/Phi-4-mini-instruct"
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     return tokenizer,model
 
 
-# tokenizer,model = get_model()
 
-user_input = st.text_area('Enter German Text Text')
+user_input = st.text_area('Enter German  Text')
 button = st.button("Translate to French")
+
+tokenizer,model = get_model()
 
 d = {
     
