@@ -3,3 +3,4 @@ numpy
 transformers
 torch
 accelerate>=0.21.0
+safetensors>=0.4.2
