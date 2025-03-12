@@ -13,7 +13,7 @@ def get_model():
     return tokenizer,model
 
 
-tokenizer,model = get_model()
+# tokenizer,model = get_model()
 
 user_input = st.text_area('Enter German Text Text')
 button = st.button("Translate to French")
