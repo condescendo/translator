@@ -58,49 +58,55 @@
 
 import streamlit as st
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import logging
+import os
 
-st.title('📚 German to French Translator')
+# Configure environment first
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+logger = logging.getLogger(__name__)
 
-@st.cache_resource 
+st.title('🇩🇪→🇫🇷 Translator')
+
+@st.cache_resource(show_spinner=False)
 def load_model():
-    model_name = "microsoft/Phi-3-mini-4k-instruct"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        device_map="auto",
-        torch_dtype="auto",
-        trust_remote_code=True
-    )
-    return tokenizer, model
+    try:
+        logger.info("Attempting model load...")
+        
+        # Use a smaller model for testing
+        model_name = "Helsinki-NLP/opus-mt-de-fr"
+        
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            device_map="auto",
+            torch_dtype="auto"
+        )
+        
+        logger.info(f"Model loaded on device: {model.device}")
+        return tokenizer, model
+        
+    except Exception as e:
+        logger.error(f"CRITICAL LOAD ERROR: {str(e)}")
+        st.error(f"Model loading failed: {str(e)}")
+        st.stop()
 
-tokenizer, model = load_model()
+try:
+    tokenizer, model = load_model()
+except Exception:
+    st.stop()
 
-user_input = st.text_area('Enter German Text:')
-button = st.button("Translate")
+def translate(text):
+    try:
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        outputs = model.generate(**inputs, max_new_tokens=200)
+        return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    except Exception as e:
+        logger.error(f"Translation error: {str(e)}")
+        return f"Error: {str(e)}"
 
-if button and user_input:
-    messages = [
-        {"role": "user", "content": f"Translate this German text to French:\n{user_input}"}
-    ]
-    
-    # Use the correct chat template method
-    inputs = tokenizer.apply_chat_template(
-        messages,
-        add_generation_prompt=True,
-        return_tensors="pt"
-    ).to(model.device)
-    
-    # Updated generation parameters
-    outputs = model.generate(
-        inputs,
-        max_new_tokens=512,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9,
-        pad_token_id=tokenizer.eos_token_id
-    )
-    
-    # Decode without special tokens
-    response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
-    st.subheader("Translation:")
-    st.write(response)
+user_input = st.text_input('Enter German text:')
+if st.button("Translate") and user_input:
+    with st.spinner("Translating..."):
+        result = translate(user_input)
+        st.subheader("Result:")
+        st.code(result)
