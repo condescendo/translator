@@ -5,7 +5,7 @@ import torch
 
 st.title('📚 Translator')
 # @st.cache(allow_output_mutation=True)
-@st.cache_resource 
+# @st.cache_resource 
 def get_model():
     model_name = "Qwen/QwQ-32B"
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
