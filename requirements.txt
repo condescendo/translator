@@ -2,4 +2,4 @@ streamlit
 numpy 
 transformers
 torch
-accelerate
+accelerate>=0.21.0
