@@ -58,43 +58,80 @@
 
 import streamlit as st
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+import logging
 
-st.title('📚 Translator')
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@st.cache_resource 
-def get_model():
-    model_name = "microsoft/Phi-3-mini-4k-instruct"  # Verified correct model name
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype="auto",
-        device_map="auto",
-        trust_remote_code=True  # Required for Phi models
-    )
-    return tokenizer, model
+st.title('📚 German to French Translator')
 
-tokenizer, model = get_model()
+@st.cache_resource(show_spinner="Loading translation model...")
+def load_model():
+    try:
+        model_name = "microsoft/Phi-3-mini-4k-instruct"
+        logger.info(f"Loading model: {model_name}")
+        
+        # Force CPU if needed
+        if not torch.cuda.is_available():
+            logger.warning("Using CPU for inference")
+            
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            device_map="auto" if torch.cuda.is_available() else None,
+            trust_remote_code=True
+        )
+        
+        if not torch.cuda.is_available():
+            model = model.to('cpu')
+            
+        logger.info("Model loaded successfully")
+        return tokenizer, model
+        
+    except Exception as e:
+        logger.error(f"Model loading failed: {str(e)}")
+        st.error(f"Failed to load model: {str(e)}")
+        raise
 
-user_input = st.text_area('Enter German Text')
-button = st.button("Translate to French")
+try:
+    tokenizer, model = load_model()
+except Exception:
+    st.stop()
 
-if user_input and button:
-    prompt = f"""<|user|>
-Translate this German text to French:
-{user_input}
-<|assistant|>
-"""
-    
-    inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=False).to(model.device)
-    
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=512,  # Reduced from 32k to prevent OOM errors
-        temperature=0.7,
-        do_sample=True
-    )
-    
-    response = tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
-    # Clean up the response by removing the prompt
-    translated_text = response.split("<|assistant|>")[-1].strip()
-    st.write(translated_text)
+user_input = st.text_area('Enter German Text:', placeholder="Type your German text here...")
+button = st.button("Translate")
+
+if button and user_input:
+    with st.spinner("Translating..."):
+        try:
+            # Phi-3 specific prompt format
+            prompt = f"<|user|>\nTranslate this German text to French:\n{user_input}\n<|assistant|>\n"
+            
+            inputs = tokenizer(
+                prompt,
+                return_tensors="pt",
+                return_attention_mask=False
+            ).to(model.device)
+
+            # Generation parameters adjusted for reliability
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=256,  # Reduced further for stability
+                temperature=0.7,
+                top_p=0.9,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id
+            )
+            
+            response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            translated = response.split("<|assistant|>")[-1].strip()
+            
+            st.subheader("Translation:")
+            st.write(translated)
+
+        except Exception as e:
+            logger.error(f"Translation error: {str(e)}")
+            st.error(f"Translation failed: {str(e)}")
